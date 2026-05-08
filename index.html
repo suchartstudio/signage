@@ -3,41 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Digital Signage - Split Display</title>
+    <title>Digital Signage - Dynamic Display</title>
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; background: #000; overflow: hidden; font-family: 'Chakra Petch', sans-serif; }
         
-        /* Layout หลัก */
         #display-wrapper { display: flex; width: 100%; height: calc(100vh - 80px); }
         
-        /* ส่วนที่ 1: Poster (ซ้าย) */
-        #poster-container { width: 30%; height: 100%; background: #0B0F19; border-right: 2px solid #00FFCC; position: relative; display: flex; justify-content: center; align-items: center; overflow: hidden; }
-        .poster-item { width: 100%; height: 100%; object-fit: cover; position: absolute; display: none; }
+        /* Left Poster */
+        #poster-container { width: 30%; height: 100%; background: #000; position: relative; overflow: hidden; }
+        /* ยืดให้เต็มกรอบด้วย object-fit: fill */
+        .poster-item { width: 100%; height: 100%; object-fit: fill; position: absolute; display: none; }
         
-        /* ส่วนที่ 2: Main Media (ขวา 4:3) */
-        #main-container { width: 70%; height: 100%; background: #05080F; position: relative; display: flex; justify-content: center; align-items: center; }
-        .main-item { width: 100%; height: 100%; object-fit: contain; aspect-ratio: 4/3; position: absolute; display: none; }
+        /* Main Media */
+        #main-container { width: 70%; height: 100%; background: #000; position: relative; overflow: hidden; }
+        /* ยืดให้เต็มกรอบด้วย object-fit: fill */
+        .main-item { width: 100%; height: 100%; object-fit: fill; position: absolute; display: none; }
         
         .active { display: block !important; }
 
-        /* ส่วนที่ 3: Marquee (ล่าง) */
-        #marquee-container { height: 80px; width: 100%; background: #0B0F19; color: #00FFCC; font-size: 46px; font-weight: 700; display: flex; align-items: center; border-top: 2px solid #00FFCC; white-space: nowrap; overflow: hidden; box-sizing: border-box; }
-        .marquee-text { display: inline-block; padding-left: 100vw; animation: marquee 20s linear infinite; }
+        /* Marquee Base Styling */
+        #marquee-container { height: 80px; width: 100%; display: flex; align-items: center; border-top: 2px solid; white-space: nowrap; overflow: hidden; box-sizing: border-box; transition: 0.3s all; }
+        .marquee-text { display: inline-block; padding-left: 100vw; font-weight: 700; animation: marquee linear infinite; }
+        
         @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
     </style>
 </head>
 <body>
 
     <div id="display-wrapper">
-        <!-- ส่วนโปสเตอร์ด้านซ้าย -->
         <div id="poster-container"></div>
-        
-        <!-- ส่วนสื่อหลักด้านขวา -->
         <div id="main-container"></div>
     </div>
 
-    <!-- ส่วนข้อความวิ่งด้านล่าง -->
     <div id="marquee-container">
         <div class="marquee-text" id="marquee-display">กำลังเชื่อมต่อข้อมูล...</div>
     </div>
@@ -59,21 +57,19 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // State สำหรับ Poster
         let posterList = [];
         let posterIndex = 0;
         let posterTimeout;
         const posterContainer = document.getElementById('poster-container');
 
-        // State สำหรับ Main Media
         let mainList = [];
         let mainIndex = 0;
         let mainTimeout;
         const mainContainer = document.getElementById('main-container');
 
+        const marqueeContainer = document.getElementById('marquee-container');
         const marqueeDisplay = document.getElementById('marquee-display');
 
-        // --- ระบบเล่น Poster (ซ้าย) ---
         function playPoster() {
             if (posterList.length === 0) return;
             document.querySelectorAll('.poster-item').forEach(el => el.classList.remove('active'));
@@ -96,7 +92,6 @@
             }
         }
 
-        // --- ระบบเล่น Main Media (ขวา) ---
         function playMain() {
             if (mainList.length === 0) return;
             document.querySelectorAll('.main-item').forEach(el => el.classList.remove('active'));
@@ -119,7 +114,6 @@
             }
         }
 
-        // --- สร้าง Elements สื่อ ---
         function buildMediaElements(list, container, prefix, className) {
             container.innerHTML = "";
             list.forEach((item, index) => {
@@ -132,15 +126,20 @@
             });
         }
 
-        // --- ดึงข้อมูล Real-time ---
         onSnapshot(doc(db, "signage", "main_screen"), (docSnap) => {
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 
-                // อัปเดตข้อความวิ่ง
+                // --- จัดการ Marquee (ปรับเปลี่ยนได้แบบ Real-time) ---
                 marqueeDisplay.innerText = data.marqueeText || "";
+                marqueeContainer.style.backgroundColor = data.marqueeBgColor || "#0B0F19";
+                marqueeContainer.style.color = data.marqueeColor || "#00FFCC";
+                marqueeContainer.style.borderTopColor = data.marqueeColor || "#00FFCC";
+                marqueeDisplay.style.fontSize = (data.marqueeFontSize || 46) + "px";
+                // ตั้งค่าความเร็ว (Animation Duration)
+                marqueeDisplay.style.animationDuration = (data.marqueeSpeed || 20) + "s";
                 
-                // อัปเดตฝั่ง Poster
+                // --- จัดการ โปสเตอร์ (ซ้าย) ---
                 const newPosterList = data.posterList || [];
                 if(JSON.stringify(newPosterList) !== JSON.stringify(posterList)) {
                     posterList = newPosterList;
@@ -150,7 +149,7 @@
                     playPoster();
                 }
 
-                // อัปเดตฝั่ง Main Media
+                // --- จัดการ สื่อหลัก (ขวา) ---
                 const newMainList = data.mediaList || [];
                 if(JSON.stringify(newMainList) !== JSON.stringify(mainList)) {
                     mainList = newMainList;
