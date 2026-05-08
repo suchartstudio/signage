@@ -3,19 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Digital Signage - Fade Transition</title>
+    <title>Digital Signage - Fade Transition with Audio</title>
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; background: #000; overflow: hidden; font-family: 'Chakra Petch', sans-serif; }
         
+        /* หน้าต่างขออนุญาตเล่นเสียง (บังคับโดย Browser) */
+        #start-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(11, 15, 25, 0.95); color: #00FFCC; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; cursor: pointer; text-transform: uppercase; border: 4px solid #00FFCC; box-sizing: border-box; }
+        .pulse-text { font-size: 40px; font-weight: bold; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; transform: scale(0.98); } 100% { opacity: 1; } }
+
         #display-wrapper { display: flex; width: 100%; height: calc(100vh - 80px); }
         
-        /* Left Poster: กว้าง 40% จะได้สัดส่วนใกล้เคียง A4 แนวตั้ง บนจอ 16:9 */
         #poster-container { width: 40%; height: 100%; background: #000; position: relative; overflow: hidden; border-right: 2px solid #2A3441;}
-        /* Main Media: พื้นที่ที่เหลือ 60% */
         #main-container { width: 60%; height: 100%; background: #000; position: relative; overflow: hidden; }
         
-        /* ตั้งค่าให้ซ้อนกัน และค่อยๆ Fade In/Out */
         .poster-item, .main-item { 
             width: 100%; height: 100%; 
             object-fit: fill; 
@@ -26,14 +28,12 @@
             transition: opacity 1s ease-in-out, visibility 1s; 
         }
         
-        /* คลาสเมื่อสื่อกำลังแสดงผล */
         .active { 
             opacity: 1 !important; 
             visibility: visible !important; 
             z-index: 1;
         }
 
-        /* Marquee Styling */
         #marquee-container { height: 80px; width: 100%; display: flex; align-items: center; border-top: 2px solid; white-space: nowrap; overflow: hidden; box-sizing: border-box; transition: 0.3s all; }
         .marquee-text { display: inline-block; padding-left: 100vw; font-weight: 700; animation: marquee linear infinite; }
         
@@ -41,6 +41,12 @@
     </style>
 </head>
 <body>
+
+    <!-- Overlay แตะเพื่อเริ่มระบบเสียง -->
+    <div id="start-overlay">
+        <div class="pulse-text">TAP TO START SIGNAGE</div>
+        <div style="font-size: 20px; margin-top: 15px; color: #E2E8F0;">แตะหน้าจอ 1 ครั้งเพื่อเริ่มระบบและเปิดการทำงานของเสียง</div>
+    </div>
 
     <div id="display-wrapper">
         <div id="poster-container"></div>
@@ -81,22 +87,31 @@
         const marqueeContainer = document.getElementById('marquee-container');
         const marqueeDisplay = document.getElementById('marquee-display');
 
+        // ตัวแปรเช็คว่ากดเริ่มหรือยัง
+        let isStarted = false;
+
+        document.getElementById('start-overlay').addEventListener('click', function() {
+            this.style.display = 'none';
+            isStarted = true;
+            
+            // เมื่อกดเริ่ม ให้ดึงคิวสื่อมาเล่นทันที
+            if (posterList.length > 0) playPoster();
+            if (mainList.length > 0) playMain();
+        });
+
         function playPoster() {
-            if (posterList.length === 0) return;
-            // ดึงคลาส active ออกจากทั้งหมด เพื่อให้มัน Fade out
+            if (!isStarted || posterList.length === 0) return;
             document.querySelectorAll('.poster-item').forEach(el => el.classList.remove('active'));
             
             if (posterIndex >= posterList.length) posterIndex = 0;
-            
             const currentMedia = posterList[posterIndex];
             const mediaElement = document.getElementById(`poster-${posterIndex}`);
             
             if (mediaElement) {
-                // ใส่คลาส active เพื่อให้ Fade in
                 mediaElement.classList.add('active');
                 if (currentMedia.type === 'video') {
                     mediaElement.currentTime = 0;
-                    mediaElement.play().catch(e=>console.log(e));
+                    mediaElement.play().catch(e => console.log("Poster Video Error:", e));
                     mediaElement.onended = () => { clearTimeout(posterTimeout); posterIndex++; playPoster(); };
                 } else {
                     posterTimeout = setTimeout(() => { posterIndex++; playPoster(); }, (currentMedia.duration || 10) * 1000);
@@ -107,21 +122,19 @@
         }
 
         function playMain() {
-            if (mainList.length === 0) return;
-            // ดึงคลาส active ออกจากทั้งหมด เพื่อให้มัน Fade out
+            if (!isStarted || mainList.length === 0) return;
             document.querySelectorAll('.main-item').forEach(el => el.classList.remove('active'));
             
             if (mainIndex >= mainList.length) mainIndex = 0;
-            
             const currentMedia = mainList[mainIndex];
             const mediaElement = document.getElementById(`main-${mainIndex}`);
             
             if (mediaElement) {
-                // ใส่คลาส active เพื่อให้ Fade in
                 mediaElement.classList.add('active');
                 if (currentMedia.type === 'video') {
                     mediaElement.currentTime = 0;
-                    mediaElement.play().catch(e=>console.log(e));
+                    // จอหลักเล่นเสียงได้ หากโดนบล็อกจะแสดง error ใน console
+                    mediaElement.play().catch(e => console.log("Main Video Audio Blocked:", e));
                     mediaElement.onended = () => { clearTimeout(mainTimeout); mainIndex++; playMain(); };
                 } else {
                     mainTimeout = setTimeout(() => { mainIndex++; playMain(); }, (currentMedia.duration || 10) * 1000);
@@ -131,14 +144,17 @@
             }
         }
 
-        function buildMediaElements(list, container, prefix, className) {
+        // เพิ่ม Parameter "isMuted" เพื่อบังคับปิด/เปิดเสียง
+        function buildMediaElements(list, container, prefix, className, isMuted) {
             container.innerHTML = "";
             list.forEach((item, index) => {
                 let el = document.createElement(item.type === 'video' ? 'video' : 'img');
                 el.src = item.url;
                 el.className = className;
                 el.id = `${prefix}-${index}`;
-                if (item.type === 'video') { el.muted = true; }
+                if (item.type === 'video') { 
+                    el.muted = isMuted; // บังคับตามค่าที่ส่งเข้ามา
+                }
                 container.appendChild(el);
             });
         }
@@ -147,7 +163,6 @@
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 
-                // อัปเดต Marquee
                 marqueeDisplay.innerText = data.marqueeText || "";
                 marqueeContainer.style.backgroundColor = data.marqueeBgColor || "#0B0F19";
                 marqueeContainer.style.color = data.marqueeColor || "#00FFCC";
@@ -155,21 +170,21 @@
                 marqueeDisplay.style.fontSize = (data.marqueeFontSize || 46) + "px";
                 marqueeDisplay.style.animationDuration = (data.marqueeSpeed || 20) + "s";
                 
-                // อัปเดต Poster
                 const newPosterList = data.posterList || [];
                 if(JSON.stringify(newPosterList) !== JSON.stringify(posterList)) {
                     posterList = newPosterList;
-                    buildMediaElements(posterList, posterContainer, 'poster', 'poster-item');
+                    // บังคับ Poster = true (ปิดเสียงเสมอ)
+                    buildMediaElements(posterList, posterContainer, 'poster', 'poster-item', true);
                     clearTimeout(posterTimeout);
                     posterIndex = 0;
                     playPoster();
                 }
 
-                // อัปเดต Main Media
                 const newMainList = data.mediaList || [];
                 if(JSON.stringify(newMainList) !== JSON.stringify(mainList)) {
                     mainList = newMainList;
-                    buildMediaElements(mainList, mainContainer, 'main', 'main-item');
+                    // บังคับ Main = false (ให้เล่นเสียง)
+                    buildMediaElements(mainList, mainContainer, 'main', 'main-item', false);
                     clearTimeout(mainTimeout);
                     mainIndex = 0;
                     playMain();
