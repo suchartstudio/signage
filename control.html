@@ -6,7 +6,7 @@
     <title>Signage Advanced Control</title>
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        :root { --bg: #0B0F19; --surface: #151B2B; --primary: #00FFCC; --secondary: #A0AEC0; --danger: #FF3366; --text: #E2E8F0; }
+        :root { --bg: #0B0F19; --surface: #151B2B; --primary: #00FFCC; --danger: #FF3366; --text: #E2E8F0; }
         body { margin: 0; font-family: 'Chakra Petch', sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
         #login-overlay { position: fixed; top:0; left:0; width: 100%; height: 100%; background: var(--bg); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; }
         .container { max-width: 1000px; margin: 0 auto; display: none; }
@@ -15,12 +15,15 @@
         .card { background: var(--surface); padding: 25px; border-radius: 12px; border-left: 5px solid var(--primary); margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         input, select, button { font-family: 'Chakra Petch', sans-serif; font-size: 18px; padding: 15px; margin: 5px 0; border-radius: 8px; border: 1px solid #2A3441; background: #0B0F19; color: white; width: 100%; box-sizing: border-box; }
         input[type="file"] { border: none; padding: 10px 0; }
+        input[type="color"] { padding: 5px; height: 50px; cursor: pointer; }
+        label { font-size: 14px; color: #A0AEC0; display: block; margin-bottom: 5px; text-transform: uppercase; font-weight: bold; }
         button { cursor: pointer; font-weight: bold; text-transform: uppercase; transition: 0.2s; border: none; }
         .btn-primary { background: var(--primary); color: #000; }
         .btn-primary:hover { background: #00E6B8; transform: translateY(-2px); }
         .btn-danger { background: var(--danger); color: #fff; }
         .btn-small { padding: 12px; font-size: 16px; width: auto; flex: 1; }
-        .flex-row { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+        .flex-row { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; margin-bottom: 15px;}
+        .col { flex: 1; min-width: 150px; }
         .media-row { display: flex; align-items: center; justify-content: space-between; background: var(--bg); padding: 15px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #2A3441; flex-wrap: wrap; gap: 15px;}
         .media-info { display: flex; align-items: center; gap: 15px; flex: 2; min-width: 200px; }
         .thumbnail { width: 90px; height: 90px; object-fit: cover; border-radius: 6px; border: 1px solid var(--primary); background: #000; }
@@ -41,35 +44,56 @@
         
         <!-- ส่วนที่ 1: Poster -->
         <div class="card">
-            <h2>1. Left Poster (ภาพแนวตั้ง ซ้ายมือ)</h2>
+            <h2>1. Left Poster (ภาพ/วิดีโอ แนวตั้ง)</h2>
             <div class="flex-row">
-                <input type="file" id="poster-file" accept="image/*,video/*" style="flex: 2; min-width: 200px;">
-                <input type="number" id="poster-duration" placeholder="เวลา (วินาที)" value="10" style="width: 120px;">
-                <button class="btn-primary" onclick="uploadMedia('posterList')" style="width: auto; padding: 15px 30px;">UPLOAD</button>
+                <div class="col" style="flex: 2;"><input type="file" id="poster-file" accept="image/*,video/*"></div>
+                <div class="col"><input type="number" id="poster-duration" placeholder="เวลาแสดง (วินาที)" value="10"></div>
+                <div class="col"><button class="btn-primary" onclick="uploadMedia('posterList')" style="height: 55px;">UPLOAD</button></div>
             </div>
             <div id="poster-status" class="status-text"></div>
-            <div id="poster-playlist" style="margin-top: 20px;"></div>
+            <div id="poster-playlist"></div>
         </div>
 
-        <!-- ส่วนที่ 2: Main Media 4:3 -->
+        <!-- ส่วนที่ 2: Main Media -->
         <div class="card">
-            <h2>2. Main Media (จอหลัก 4:3 ขวามือ)</h2>
+            <h2>2. Main Media (จอแสดงผลหลัก)</h2>
             <div class="flex-row">
-                <input type="file" id="main-file" accept="image/*,video/*" style="flex: 2; min-width: 200px;">
-                <input type="number" id="main-duration" placeholder="เวลา (วินาที)" value="10" style="width: 120px;">
-                <button class="btn-primary" onclick="uploadMedia('mediaList')" style="width: auto; padding: 15px 30px;">UPLOAD</button>
+                <div class="col" style="flex: 2;"><input type="file" id="main-file" accept="image/*,video/*"></div>
+                <div class="col"><input type="number" id="main-duration" placeholder="เวลาแสดง (วินาที)" value="10"></div>
+                <div class="col"><button class="btn-primary" onclick="uploadMedia('mediaList')" style="height: 55px;">UPLOAD</button></div>
             </div>
             <div id="main-status" class="status-text"></div>
-            <div id="main-playlist" style="margin-top: 20px;"></div>
+            <div id="main-playlist"></div>
         </div>
 
-        <!-- ส่วนที่ 3: Marquee -->
+        <!-- ส่วนที่ 3: Marquee Settings -->
         <div class="card">
-            <h2>3. Marquee Text (ข้อความวิ่ง ล่างสุด)</h2>
+            <h2>3. Marquee Text & Styling (แถบข้อความวิ่ง)</h2>
             <div class="flex-row">
-                <input type="text" id="marquee-input" style="flex: 1; min-width: 250px;" placeholder="พิมพ์ข้อความวิ่งที่นี่...">
-                <button class="btn-primary" id="save-marquee-btn" style="width: auto; padding: 15px 30px;">UPDATE</button>
+                <div class="col" style="flex: 100%;">
+                    <label>ข้อความที่ต้องการแสดง</label>
+                    <input type="text" id="mq-text" placeholder="พิมพ์ข้อความวิ่งที่นี่...">
+                </div>
             </div>
+            <div class="flex-row">
+                <div class="col">
+                    <label>ความเร็ว (วินาที/รอบ) *ค่าน้อย=เร็ว</label>
+                    <input type="number" id="mq-speed" value="20">
+                </div>
+                <div class="col">
+                    <label>ขนาดตัวอักษร (px)</label>
+                    <input type="number" id="mq-size" value="46">
+                </div>
+                <div class="col">
+                    <label>สีตัวอักษร</label>
+                    <input type="color" id="mq-color" value="#00FFCC">
+                </div>
+                <div class="col">
+                    <label>สีพื้นหลัง</label>
+                    <input type="color" id="mq-bg" value="#0B0F19">
+                </div>
+            </div>
+            <button class="btn-primary" id="save-marquee-btn" style="width: 100%; margin-top: 15px;">SAVE MARQUEE SETTINGS</button>
         </div>
     </div>
 
@@ -93,10 +117,7 @@
         const storage = getStorage(app);
         const docRef = doc(db, "signage", "main_screen");
 
-        let state = {
-            posterList: [],
-            mediaList: []
-        };
+        let state = { posterList: [], mediaList: [] };
 
         window.checkPassword = () => {
             if (document.getElementById('password').value === '987654321') {
@@ -112,7 +133,15 @@
             onSnapshot(docRef, (docSnap) => {
                 if (docSnap.exists()) {
                     const data = docSnap.data();
-                    document.getElementById('marquee-input').value = data.marqueeText || "";
+                    
+                    // อัปเดต Marquee Inputs
+                    document.getElementById('mq-text').value = data.marqueeText || "";
+                    document.getElementById('mq-speed').value = data.marqueeSpeed || 20;
+                    document.getElementById('mq-size').value = data.marqueeFontSize || 46;
+                    document.getElementById('mq-color').value = data.marqueeColor || "#00ffcc";
+                    document.getElementById('mq-bg').value = data.marqueeBgColor || "#0b0f19";
+
+                    // อัปเดตสื่อ
                     state.posterList = data.posterList || [];
                     state.mediaList = data.mediaList || [];
                     
@@ -122,14 +151,18 @@
             });
         }
 
-        // เซฟข้อความวิ่ง
+        // กด Save การตั้งค่าข้อความวิ่ง
         document.getElementById('save-marquee-btn').addEventListener('click', async () => {
-            const text = document.getElementById('marquee-input').value;
-            await setDoc(docRef, { marqueeText: text }, { merge: true });
-            alert('อัปเดตข้อความวิ่งเรียบร้อย');
+            await setDoc(docRef, { 
+                marqueeText: document.getElementById('mq-text').value,
+                marqueeSpeed: parseInt(document.getElementById('mq-speed').value) || 20,
+                marqueeFontSize: parseInt(document.getElementById('mq-size').value) || 46,
+                marqueeColor: document.getElementById('mq-color').value,
+                marqueeBgColor: document.getElementById('mq-bg').value
+            }, { merge: true });
+            alert('บันทึกการตั้งค่าข้อความวิ่งเรียบร้อย');
         });
 
-        // ฟังก์ชันอัปโหลดรวม (แยกตาม targetField: posterList หรือ mediaList)
         window.uploadMedia = async (targetField) => {
             const fileInput = document.getElementById(targetField === 'posterList' ? 'poster-file' : 'main-file');
             const durationInput = document.getElementById(targetField === 'posterList' ? 'poster-duration' : 'main-duration');
@@ -163,7 +196,6 @@
             );
         };
 
-        // แสดงรายการ
         function renderPlaylist(targetField, containerId) {
             const container = document.getElementById(containerId);
             container.innerHTML = '';
@@ -188,7 +220,6 @@
             });
         }
 
-        // เลื่อนขึ้น/ลง
         window.moveItem = async (targetField, index, direction) => {
             const list = state[targetField];
             if (index + direction < 0 || index + direction >= list.length) return;
@@ -201,7 +232,6 @@
             await setDoc(docRef, { [targetField]: list }, { merge: true });
         };
 
-        // ลบ
         window.deleteItem = async (targetField, index) => {
             if(confirm('ต้องการลบสื่อนี้ใช่หรือไม่?')) {
                 const list = state[targetField];
