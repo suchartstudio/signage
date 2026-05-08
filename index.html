@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Signage - Display</title>
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Chakra Petch', sans-serif; }
+        #media-container { width: 100%; height: calc(100% - 80px); display: flex; justify-content: center; align-items: center; }
+        .media-item { width: 100%; height: 100%; object-fit: contain; display: none; }
+        .media-item.active { display: block; }
+        #marquee-container { height: 80px; background: #0B0F19; color: #00FFCC; font-size: 42px; font-weight: 700; display: flex; align-items: center; border-top: 2px solid #00FFCC; white-space: nowrap; overflow: hidden; }
+        .marquee-text { display: inline-block; padding-left: 100%; animation: marquee 15s linear infinite; }
+        @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
+    </style>
+</head>
+<body>
+
+    <div id="media-container"></div>
+    <div id="marquee-container">
+        <div class="marquee-text" id="marquee-display">กำลังโหลดข้อมูลและเชื่อมต่อ Firebase...</div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-analytics.js";
+        import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBvXRATBf2x1Lq_JToL2rlQYOh8mK65tIU",
+            authDomain: "suchartstudio-9a78d.firebaseapp.com",
+            databaseURL: "https://suchartstudio-9a78d-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "suchartstudio-9a78d",
+            storageBucket: "suchartstudio-9a78d.firebasestorage.app",
+            messagingSenderId: "953369646185",
+            appId: "1:953369646185:web:1d028fac51e3da1e6ebef8",
+            measurementId: "G-WJSVDQR369"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const db = getFirestore(app);
+
+        let playlist = [];
+        let currentIndex = 0;
+        let playTimeout;
+        const container = document.getElementById('media-container');
+        const marqueeDisplay = document.getElementById('marquee-display');
+
+        function playMedia() {
+            if (playlist.length === 0) return;
+            
+            document.querySelectorAll('.media-item').forEach(el => el.classList.remove('active'));
+            
+            if (currentIndex >= playlist.length) currentIndex = 0;
+            const currentMedia = playlist[currentIndex];
+            const mediaElement = document.getElementById(`media-${currentIndex}`);
+            
+            if (mediaElement) {
+                mediaElement.classList.add('active');
+                if (currentMedia.type === 'video') {
+                    mediaElement.currentTime = 0;
+                    mediaElement.play();
+                    mediaElement.onended = () => { nextMedia(); };
+                } else {
+                    playTimeout = setTimeout(nextMedia, (currentMedia.duration || 5) * 1000);
+                }
+            } else {
+                nextMedia();
+            }
+        }
+
+        function nextMedia() {
+            clearTimeout(playTimeout);
+            currentIndex++;
+            playMedia();
+        }
+
+        onSnapshot(doc(db, "signage", "main_screen"), (doc) => {
+            if (doc.exists()) {
+                const data = doc.data();
+                marqueeDisplay.innerText = data.marqueeText || "";
+                
+                playlist = data.mediaList || [];
+                container.innerHTML = ""; 
+                
+                playlist.forEach((item, index) => {
+                    let el;
+                    if (item.type === 'video') {
+                        el = document.createElement('video');
+                        el.src = item.url;
+                        el.muted = true; 
+                    } else {
+                        el = document.createElement('img');
+                        el.src = item.url;
+                    }
+                    el.className = 'media-item';
+                    el.id = `media-${index}`;
+                    container.appendChild(el);
+                });
+                
+                clearTimeout(playTimeout);
+                currentIndex = 0;
+                playMedia();
+            }
+        });
+    </script>
+</body>
+</html>

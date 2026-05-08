@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signage Control Panel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg: #0B0F19; --surface: #151B2B; --primary: #00FFCC; --danger: #FF3366; --text: #E2E8F0; }
+        body { margin: 0; font-family: 'Chakra Petch', sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
+        #login-overlay { position: fixed; top:0; left:0; width: 100%; height: 100%; background: var(--bg); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; }
+        .container { max-width: 900px; margin: 0 auto; display: none; }
+        h1, h2 { color: var(--primary); text-transform: uppercase; letter-spacing: 2px; }
+        .card { background: var(--surface); padding: 20px; border-radius: 12px; border-left: 4px solid var(--primary); margin-bottom: 20px; }
+        input, select, button { font-family: 'Chakra Petch', sans-serif; font-size: 18px; padding: 12px; margin: 5px 0; border-radius: 8px; border: 1px solid #2A3441; background: #0B0F19; color: white; width: 100%; box-sizing: border-box;}
+        input[type="file"] { border: none; }
+        button { cursor: pointer; font-weight: bold; text-transform: uppercase; transition: 0.2s; border: none; }
+        .btn-primary { background: var(--primary); color: #000; }
+        .btn-primary:hover { background: #00E6B8; transform: scale(1.02); }
+        .btn-danger { background: var(--danger); color: #fff; }
+        .btn-small { padding: 12px; font-size: 16px; width: auto;}
+        .flex-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .media-row { display: flex; align-items: center; justify-content: space-between; background: var(--bg); padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #2A3441; flex-wrap: wrap; gap: 15px;}
+        .media-info { display: flex; align-items: center; gap: 15px; }
+        .thumbnail { width: 100px; height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid var(--primary); }
+        .controls { display: flex; gap: 10px; flex-wrap: wrap;}
+        #status { color: var(--primary); font-weight: bold; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="login-overlay">
+        <h1>SECURE ACCESS</h1>
+        <input type="password" id="password" placeholder="Enter PIN" style="text-align:center; font-size: 24px; max-width: 300px;">
+        <button class="btn-primary" onclick="checkPassword()" style="max-width: 300px; margin-top: 10px;">LOGIN</button>
+    </div>
+
+    <div class="container" id="dashboard">
+        <h1>Control Panel</h1>
+        
+        <div class="card">
+            <h2>Marquee Text (ข้อความวิ่ง)</h2>
+            <div class="flex-row">
+                <input type="text" id="marquee-input" style="flex: 1; min-width: 250px;" placeholder="พิมพ์ข้อความที่นี่...">
+                <button class="btn-primary btn-small" id="save-marquee-btn" style="width: auto; padding: 12px 24px;">UPDATE TEXT</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Add New Media (เพิ่มสื่อ)</h2>
+            <div class="flex-row">
+                <input type="file" id="file-input" accept="image/*,video/*" style="flex: 1; min-width: 200px;">
+                <input type="number" id="duration-input" placeholder="ระยะเวลา (วินาที)" value="10" style="width: 150px;">
+                <button class="btn-primary btn-small" id="upload-btn" style="width: auto; padding: 12px 24px;">UPLOAD</button>
+            </div>
+            <div id="status"></div>
+        </div>
+
+        <div class="card">
+            <h2>Playlist Order (จัดเรียงคิวสื่อ)</h2>
+            <div id="playlist-container"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-analytics.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+        import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-storage.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBvXRATBf2x1Lq_JToL2rlQYOh8mK65tIU",
+            authDomain: "suchartstudio-9a78d.firebaseapp.com",
+            databaseURL: "https://suchartstudio-9a78d-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "suchartstudio-9a78d",
+            storageBucket: "suchartstudio-9a78d.firebasestorage.app",
+            messagingSenderId: "953369646185",
+            appId: "1:953369646185:web:1d028fac51e3da1e6ebef8",
+            measurementId: "G-WJSVDQR369"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
+        const docRef = doc(db, "signage", "main_screen");
+
+        let currentPlaylist = [];
+
+        window.checkPassword = () => {
+            if (document.getElementById('password').value === '987654321') {
+                document.getElementById('login-overlay').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+                initDashboard();
+            } else {
+                alert('Access Denied');
+            }
+        };
+
+        function initDashboard() {
+            onSnapshot(docRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    document.getElementById('marquee-input').value = data.marqueeText || "";
+                    currentPlaylist = data.mediaList || [];
+                    renderPlaylist();
+                }
+            });
+        }
+
+        document.getElementById('save-marquee-btn').addEventListener('click', async () => {
+            const text = document.getElementById('marquee-input').value;
+            await setDoc(docRef, { marqueeText: text }, { merge: true });
+            alert('อัปเดตข้อความเรียบร้อย');
+        });
+
+        document.getElementById('upload-btn').addEventListener('click', async () => {
+            const file = document.getElementById('file-input').files[0];
+            const duration = document.getElementById('duration-input').value;
+            if (!file) return alert('กรุณาเลือกไฟล์');
+
+            const status = document.getElementById('status');
+            const fileType = file.type.startsWith('video/') ? 'video' : 'image';
+            const storageRef = ref(storage, 'signage_media/' + Date.now() + '_' + file.name);
+            const uploadTask = uploadBytesResumable(storageRef, file);
+
+            uploadTask.on('state_changed', 
+                (snapshot) => {
+                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                    status.innerText = `Uploading: ${Math.round(progress)}%`;
+                }, 
+                (error) => { console.error(error); status.innerText = 'Upload failed!'; }, 
+                async () => {
+                    const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                    const newMedia = { type: fileType, url: downloadURL, duration: parseInt(duration) || 10 };
+                    
+                    currentPlaylist.push(newMedia);
+                    await setDoc(docRef, { mediaList: currentPlaylist }, { merge: true });
+                    
+                    status.innerText = 'อัปโหลดสำเร็จ!';
+                    setTimeout(() => status.innerText = '', 3000);
+                    document.getElementById('file-input').value = '';
+                }
+            );
+        });
+
+        function renderPlaylist() {
+            const container = document.getElementById('playlist-container');
+            container.innerHTML = '';
+            
+            currentPlaylist.forEach((item, index) => {
+                const row = document.createElement('div');
+                row.className = 'media-row';
+                
+                const typeLabel = item.type === 'video' ? '🎬 วิดีโอ' : `🖼️ ภาพ (${item.duration}s)`;
+                
+                row.innerHTML = `
+                    <div class="media-info">
+                        ${item.type === 'video' 
+                            ? `<video src="${item.url}" class="thumbnail"></video>` 
+                            : `<img src="${item.url}" class="thumbnail">`
+                        }
+                        <span style="font-size: 18px;">${typeLabel}</span>
+                    </div>
+                    <div class="controls">
+                        <button class="btn-primary btn-small" onclick="moveItem(${index}, -1)">▲</button>
+                        <button class="btn-primary btn-small" onclick="moveItem(${index}, 1)">▼</button>
+                        <button class="btn-danger btn-small" onclick="deleteItem(${index})">X ลบ</button>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        window.moveItem = async (index, direction) => {
+            if (index + direction < 0 || index + direction >= currentPlaylist.length) return;
+            const newIndex = index + direction;
+            
+            const temp = currentPlaylist[index];
+            currentPlaylist[index] = currentPlaylist[newIndex];
+            currentPlaylist[newIndex] = temp;
+            
+            await setDoc(docRef, { mediaList: currentPlaylist }, { merge: true });
+        };
+
+        window.deleteItem = async (index) => {
+            if(confirm('ต้องการลบสื่อนี้ใช่หรือไม่?')) {
+                currentPlaylist.splice(index, 1);
+                await setDoc(docRef, { mediaList: currentPlaylist }, { merge: true });
+            }
+        };
+    </script>
+</body>
+</html>
