@@ -3,28 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Digital Signage - Display</title>
+    <title>Digital Signage - Split Display</title>
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Chakra Petch', sans-serif; }
-        #media-container { width: 100%; height: calc(100% - 80px); display: flex; justify-content: center; align-items: center; }
-        .media-item { width: 100%; height: 100%; object-fit: contain; display: none; }
-        .media-item.active { display: block; }
-        #marquee-container { height: 80px; background: #0B0F19; color: #00FFCC; font-size: 42px; font-weight: 700; display: flex; align-items: center; border-top: 2px solid #00FFCC; white-space: nowrap; overflow: hidden; }
-        .marquee-text { display: inline-block; padding-left: 100%; animation: marquee 15s linear infinite; }
+        body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; background: #000; overflow: hidden; font-family: 'Chakra Petch', sans-serif; }
+        
+        /* Layout หลัก */
+        #display-wrapper { display: flex; width: 100%; height: calc(100vh - 80px); }
+        
+        /* ส่วนที่ 1: Poster (ซ้าย) */
+        #poster-container { width: 30%; height: 100%; background: #0B0F19; border-right: 2px solid #00FFCC; position: relative; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+        .poster-item { width: 100%; height: 100%; object-fit: cover; position: absolute; display: none; }
+        
+        /* ส่วนที่ 2: Main Media (ขวา 4:3) */
+        #main-container { width: 70%; height: 100%; background: #05080F; position: relative; display: flex; justify-content: center; align-items: center; }
+        .main-item { width: 100%; height: 100%; object-fit: contain; aspect-ratio: 4/3; position: absolute; display: none; }
+        
+        .active { display: block !important; }
+
+        /* ส่วนที่ 3: Marquee (ล่าง) */
+        #marquee-container { height: 80px; width: 100%; background: #0B0F19; color: #00FFCC; font-size: 46px; font-weight: 700; display: flex; align-items: center; border-top: 2px solid #00FFCC; white-space: nowrap; overflow: hidden; box-sizing: border-box; }
+        .marquee-text { display: inline-block; padding-left: 100vw; animation: marquee 20s linear infinite; }
         @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
     </style>
 </head>
 <body>
 
-    <div id="media-container"></div>
+    <div id="display-wrapper">
+        <!-- ส่วนโปสเตอร์ด้านซ้าย -->
+        <div id="poster-container"></div>
+        
+        <!-- ส่วนสื่อหลักด้านขวา -->
+        <div id="main-container"></div>
+    </div>
+
+    <!-- ส่วนข้อความวิ่งด้านล่าง -->
     <div id="marquee-container">
-        <div class="marquee-text" id="marquee-display">กำลังโหลดข้อมูลและเชื่อมต่อ Firebase...</div>
+        <div class="marquee-text" id="marquee-display">กำลังเชื่อมต่อข้อมูล...</div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-analytics.js";
         import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -34,75 +53,112 @@
             projectId: "suchartstudio-9a78d",
             storageBucket: "suchartstudio-9a78d.firebasestorage.app",
             messagingSenderId: "953369646185",
-            appId: "1:953369646185:web:1d028fac51e3da1e6ebef8",
-            measurementId: "G-WJSVDQR369"
+            appId: "1:953369646185:web:1d028fac51e3da1e6ebef8"
         };
 
         const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app);
         const db = getFirestore(app);
 
-        let playlist = [];
-        let currentIndex = 0;
-        let playTimeout;
-        const container = document.getElementById('media-container');
+        // State สำหรับ Poster
+        let posterList = [];
+        let posterIndex = 0;
+        let posterTimeout;
+        const posterContainer = document.getElementById('poster-container');
+
+        // State สำหรับ Main Media
+        let mainList = [];
+        let mainIndex = 0;
+        let mainTimeout;
+        const mainContainer = document.getElementById('main-container');
+
         const marqueeDisplay = document.getElementById('marquee-display');
 
-        function playMedia() {
-            if (playlist.length === 0) return;
+        // --- ระบบเล่น Poster (ซ้าย) ---
+        function playPoster() {
+            if (posterList.length === 0) return;
+            document.querySelectorAll('.poster-item').forEach(el => el.classList.remove('active'));
+            if (posterIndex >= posterList.length) posterIndex = 0;
             
-            document.querySelectorAll('.media-item').forEach(el => el.classList.remove('active'));
-            
-            if (currentIndex >= playlist.length) currentIndex = 0;
-            const currentMedia = playlist[currentIndex];
-            const mediaElement = document.getElementById(`media-${currentIndex}`);
+            const currentMedia = posterList[posterIndex];
+            const mediaElement = document.getElementById(`poster-${posterIndex}`);
             
             if (mediaElement) {
                 mediaElement.classList.add('active');
                 if (currentMedia.type === 'video') {
                     mediaElement.currentTime = 0;
-                    mediaElement.play();
-                    mediaElement.onended = () => { nextMedia(); };
+                    mediaElement.play().catch(e=>console.log(e));
+                    mediaElement.onended = () => { clearTimeout(posterTimeout); posterIndex++; playPoster(); };
                 } else {
-                    playTimeout = setTimeout(nextMedia, (currentMedia.duration || 5) * 1000);
+                    posterTimeout = setTimeout(() => { posterIndex++; playPoster(); }, (currentMedia.duration || 10) * 1000);
                 }
             } else {
-                nextMedia();
+                posterIndex++; playPoster();
             }
         }
 
-        function nextMedia() {
-            clearTimeout(playTimeout);
-            currentIndex++;
-            playMedia();
+        // --- ระบบเล่น Main Media (ขวา) ---
+        function playMain() {
+            if (mainList.length === 0) return;
+            document.querySelectorAll('.main-item').forEach(el => el.classList.remove('active'));
+            if (mainIndex >= mainList.length) mainIndex = 0;
+            
+            const currentMedia = mainList[mainIndex];
+            const mediaElement = document.getElementById(`main-${mainIndex}`);
+            
+            if (mediaElement) {
+                mediaElement.classList.add('active');
+                if (currentMedia.type === 'video') {
+                    mediaElement.currentTime = 0;
+                    mediaElement.play().catch(e=>console.log(e));
+                    mediaElement.onended = () => { clearTimeout(mainTimeout); mainIndex++; playMain(); };
+                } else {
+                    mainTimeout = setTimeout(() => { mainIndex++; playMain(); }, (currentMedia.duration || 10) * 1000);
+                }
+            } else {
+                mainIndex++; playMain();
+            }
         }
 
-        onSnapshot(doc(db, "signage", "main_screen"), (doc) => {
-            if (doc.exists()) {
-                const data = doc.data();
+        // --- สร้าง Elements สื่อ ---
+        function buildMediaElements(list, container, prefix, className) {
+            container.innerHTML = "";
+            list.forEach((item, index) => {
+                let el = document.createElement(item.type === 'video' ? 'video' : 'img');
+                el.src = item.url;
+                el.className = className;
+                el.id = `${prefix}-${index}`;
+                if (item.type === 'video') { el.muted = true; }
+                container.appendChild(el);
+            });
+        }
+
+        // --- ดึงข้อมูล Real-time ---
+        onSnapshot(doc(db, "signage", "main_screen"), (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                
+                // อัปเดตข้อความวิ่ง
                 marqueeDisplay.innerText = data.marqueeText || "";
                 
-                playlist = data.mediaList || [];
-                container.innerHTML = ""; 
-                
-                playlist.forEach((item, index) => {
-                    let el;
-                    if (item.type === 'video') {
-                        el = document.createElement('video');
-                        el.src = item.url;
-                        el.muted = true; 
-                    } else {
-                        el = document.createElement('img');
-                        el.src = item.url;
-                    }
-                    el.className = 'media-item';
-                    el.id = `media-${index}`;
-                    container.appendChild(el);
-                });
-                
-                clearTimeout(playTimeout);
-                currentIndex = 0;
-                playMedia();
+                // อัปเดตฝั่ง Poster
+                const newPosterList = data.posterList || [];
+                if(JSON.stringify(newPosterList) !== JSON.stringify(posterList)) {
+                    posterList = newPosterList;
+                    buildMediaElements(posterList, posterContainer, 'poster', 'poster-item');
+                    clearTimeout(posterTimeout);
+                    posterIndex = 0;
+                    playPoster();
+                }
+
+                // อัปเดตฝั่ง Main Media
+                const newMainList = data.mediaList || [];
+                if(JSON.stringify(newMainList) !== JSON.stringify(mainList)) {
+                    mainList = newMainList;
+                    buildMediaElements(mainList, mainContainer, 'main', 'main-item');
+                    clearTimeout(mainTimeout);
+                    mainIndex = 0;
+                    playMain();
+                }
             }
         });
     </script>
