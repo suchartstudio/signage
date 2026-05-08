@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Signage Advanced Control</title>
+    <title>Signage Control Slider</title>
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root { --bg: #0B0F19; --surface: #151B2B; --primary: #00FFCC; --danger: #FF3366; --text: #E2E8F0; }
@@ -16,7 +16,14 @@
         input, select, button { font-family: 'Chakra Petch', sans-serif; font-size: 18px; padding: 15px; margin: 5px 0; border-radius: 8px; border: 1px solid #2A3441; background: #0B0F19; color: white; width: 100%; box-sizing: border-box; }
         input[type="file"] { border: none; padding: 10px 0; }
         input[type="color"] { padding: 5px; height: 50px; cursor: pointer; }
+        
+        /* สไตล์สำหรับ Slider (Range) แบบ Futuristic */
+        input[type="range"] { -webkit-appearance: none; width: 100%; height: 8px; background: #2A3441; border-radius: 5px; outline: none; border: none; padding: 0; margin: 15px 0; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 28px; height: 28px; border-radius: 50%; background: var(--primary); cursor: pointer; box-shadow: 0 0 10px var(--primary); }
+        input[type="range"]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 50%; background: var(--primary); cursor: pointer; box-shadow: 0 0 10px var(--primary); border: none; }
+
         label { font-size: 14px; color: #A0AEC0; display: block; margin-bottom: 5px; text-transform: uppercase; font-weight: bold; }
+        .val-display { color: var(--primary); font-size: 18px; margin-left: 5px; }
         button { cursor: pointer; font-weight: bold; text-transform: uppercase; transition: 0.2s; border: none; }
         .btn-primary { background: var(--primary); color: #000; }
         .btn-primary:hover { background: #00E6B8; transform: translateY(-2px); }
@@ -44,7 +51,7 @@
         
         <!-- ส่วนที่ 1: Poster -->
         <div class="card">
-            <h2>1. Left Poster (ภาพ/วิดีโอ แนวตั้ง)</h2>
+            <h2>1. Left Poster (สัดส่วน A4 แนวตั้ง)</h2>
             <div class="flex-row">
                 <div class="col" style="flex: 2;"><input type="file" id="poster-file" accept="image/*,video/*"></div>
                 <div class="col"><input type="number" id="poster-duration" placeholder="เวลาแสดง (วินาที)" value="10"></div>
@@ -56,7 +63,7 @@
 
         <!-- ส่วนที่ 2: Main Media -->
         <div class="card">
-            <h2>2. Main Media (จอแสดงผลหลัก)</h2>
+            <h2>2. Main Media (จอหลัก 60%)</h2>
             <div class="flex-row">
                 <div class="col" style="flex: 2;"><input type="file" id="main-file" accept="image/*,video/*"></div>
                 <div class="col"><input type="number" id="main-duration" placeholder="เวลาแสดง (วินาที)" value="10"></div>
@@ -68,7 +75,7 @@
 
         <!-- ส่วนที่ 3: Marquee Settings -->
         <div class="card">
-            <h2>3. Marquee Text & Styling (แถบข้อความวิ่ง)</h2>
+            <h2>3. Marquee Text & Styling</h2>
             <div class="flex-row">
                 <div class="col" style="flex: 100%;">
                     <label>ข้อความที่ต้องการแสดง</label>
@@ -76,14 +83,16 @@
                 </div>
             </div>
             <div class="flex-row">
-                <div class="col">
-                    <label>ความเร็ว (วินาที/รอบ) *ค่าน้อย=เร็ว</label>
-                    <input type="number" id="mq-speed" value="20">
+                <div class="col" style="flex: 2;">
+                    <label>ความเร็ว (วินาที/รอบ)<span class="val-display" id="speed-val">20</span></label>
+                    <input type="range" id="mq-speed" min="5" max="60" value="20" oninput="document.getElementById('speed-val').innerText = this.value">
                 </div>
-                <div class="col">
-                    <label>ขนาดตัวอักษร (px)</label>
-                    <input type="number" id="mq-size" value="46">
+                <div class="col" style="flex: 2;">
+                    <label>ขนาดตัวอักษร (px)<span class="val-display" id="size-val">46</span></label>
+                    <input type="range" id="mq-size" min="20" max="150" value="46" oninput="document.getElementById('size-val').innerText = this.value">
                 </div>
+            </div>
+            <div class="flex-row">
                 <div class="col">
                     <label>สีตัวอักษร</label>
                     <input type="color" id="mq-color" value="#00FFCC">
@@ -134,14 +143,17 @@
                 if (docSnap.exists()) {
                     const data = docSnap.data();
                     
-                    // อัปเดต Marquee Inputs
                     document.getElementById('mq-text').value = data.marqueeText || "";
+                    
                     document.getElementById('mq-speed').value = data.marqueeSpeed || 20;
+                    document.getElementById('speed-val').innerText = data.marqueeSpeed || 20;
+                    
                     document.getElementById('mq-size').value = data.marqueeFontSize || 46;
+                    document.getElementById('size-val').innerText = data.marqueeFontSize || 46;
+                    
                     document.getElementById('mq-color').value = data.marqueeColor || "#00ffcc";
                     document.getElementById('mq-bg').value = data.marqueeBgColor || "#0b0f19";
 
-                    // อัปเดตสื่อ
                     state.posterList = data.posterList || [];
                     state.mediaList = data.mediaList || [];
                     
@@ -151,7 +163,6 @@
             });
         }
 
-        // กด Save การตั้งค่าข้อความวิ่ง
         document.getElementById('save-marquee-btn').addEventListener('click', async () => {
             await setDoc(docRef, { 
                 marqueeText: document.getElementById('mq-text').value,
