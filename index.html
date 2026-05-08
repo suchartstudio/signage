@@ -3,26 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Digital Signage - Dynamic Display</title>
+    <title>Digital Signage - Fade Transition</title>
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; background: #000; overflow: hidden; font-family: 'Chakra Petch', sans-serif; }
         
         #display-wrapper { display: flex; width: 100%; height: calc(100vh - 80px); }
         
-        /* Left Poster */
-        #poster-container { width: 30%; height: 100%; background: #000; position: relative; overflow: hidden; }
-        /* ยืดให้เต็มกรอบด้วย object-fit: fill */
-        .poster-item { width: 100%; height: 100%; object-fit: fill; position: absolute; display: none; }
+        /* Left Poster: กว้าง 40% จะได้สัดส่วนใกล้เคียง A4 แนวตั้ง บนจอ 16:9 */
+        #poster-container { width: 40%; height: 100%; background: #000; position: relative; overflow: hidden; border-right: 2px solid #2A3441;}
+        /* Main Media: พื้นที่ที่เหลือ 60% */
+        #main-container { width: 60%; height: 100%; background: #000; position: relative; overflow: hidden; }
         
-        /* Main Media */
-        #main-container { width: 70%; height: 100%; background: #000; position: relative; overflow: hidden; }
-        /* ยืดให้เต็มกรอบด้วย object-fit: fill */
-        .main-item { width: 100%; height: 100%; object-fit: fill; position: absolute; display: none; }
+        /* ตั้งค่าให้ซ้อนกัน และค่อยๆ Fade In/Out */
+        .poster-item, .main-item { 
+            width: 100%; height: 100%; 
+            object-fit: fill; 
+            position: absolute; 
+            top: 0; left: 0;
+            opacity: 0; 
+            visibility: hidden;
+            transition: opacity 1s ease-in-out, visibility 1s; 
+        }
         
-        .active { display: block !important; }
+        /* คลาสเมื่อสื่อกำลังแสดงผล */
+        .active { 
+            opacity: 1 !important; 
+            visibility: visible !important; 
+            z-index: 1;
+        }
 
-        /* Marquee Base Styling */
+        /* Marquee Styling */
         #marquee-container { height: 80px; width: 100%; display: flex; align-items: center; border-top: 2px solid; white-space: nowrap; overflow: hidden; box-sizing: border-box; transition: 0.3s all; }
         .marquee-text { display: inline-block; padding-left: 100vw; font-weight: 700; animation: marquee linear infinite; }
         
@@ -72,13 +83,16 @@
 
         function playPoster() {
             if (posterList.length === 0) return;
+            // ดึงคลาส active ออกจากทั้งหมด เพื่อให้มัน Fade out
             document.querySelectorAll('.poster-item').forEach(el => el.classList.remove('active'));
+            
             if (posterIndex >= posterList.length) posterIndex = 0;
             
             const currentMedia = posterList[posterIndex];
             const mediaElement = document.getElementById(`poster-${posterIndex}`);
             
             if (mediaElement) {
+                // ใส่คลาส active เพื่อให้ Fade in
                 mediaElement.classList.add('active');
                 if (currentMedia.type === 'video') {
                     mediaElement.currentTime = 0;
@@ -94,13 +108,16 @@
 
         function playMain() {
             if (mainList.length === 0) return;
+            // ดึงคลาส active ออกจากทั้งหมด เพื่อให้มัน Fade out
             document.querySelectorAll('.main-item').forEach(el => el.classList.remove('active'));
+            
             if (mainIndex >= mainList.length) mainIndex = 0;
             
             const currentMedia = mainList[mainIndex];
             const mediaElement = document.getElementById(`main-${mainIndex}`);
             
             if (mediaElement) {
+                // ใส่คลาส active เพื่อให้ Fade in
                 mediaElement.classList.add('active');
                 if (currentMedia.type === 'video') {
                     mediaElement.currentTime = 0;
@@ -130,16 +147,15 @@
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 
-                // --- จัดการ Marquee (ปรับเปลี่ยนได้แบบ Real-time) ---
+                // อัปเดต Marquee
                 marqueeDisplay.innerText = data.marqueeText || "";
                 marqueeContainer.style.backgroundColor = data.marqueeBgColor || "#0B0F19";
                 marqueeContainer.style.color = data.marqueeColor || "#00FFCC";
                 marqueeContainer.style.borderTopColor = data.marqueeColor || "#00FFCC";
                 marqueeDisplay.style.fontSize = (data.marqueeFontSize || 46) + "px";
-                // ตั้งค่าความเร็ว (Animation Duration)
                 marqueeDisplay.style.animationDuration = (data.marqueeSpeed || 20) + "s";
                 
-                // --- จัดการ โปสเตอร์ (ซ้าย) ---
+                // อัปเดต Poster
                 const newPosterList = data.posterList || [];
                 if(JSON.stringify(newPosterList) !== JSON.stringify(posterList)) {
                     posterList = newPosterList;
@@ -149,7 +165,7 @@
                     playPoster();
                 }
 
-                // --- จัดการ สื่อหลัก (ขวา) ---
+                // อัปเดต Main Media
                 const newMainList = data.mediaList || [];
                 if(JSON.stringify(newMainList) !== JSON.stringify(mainList)) {
                     mainList = newMainList;
