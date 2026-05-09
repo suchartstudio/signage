@@ -3,27 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Signage Control Slider</title>
+    <title>Signage Control Panel</title>
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root { --bg: #0B0F19; --surface: #151B2B; --primary: #00FFCC; --danger: #FF3366; --text: #E2E8F0; }
         body { margin: 0; font-family: 'Chakra Petch', sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
         #login-overlay { position: fixed; top:0; left:0; width: 100%; height: 100%; background: var(--bg); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; }
-        .container { max-width: 1000px; margin: 0 auto; display: none; }
+        .container { max-width: 900px; margin: 0 auto; display: none; }
         h1 { color: var(--primary); text-transform: uppercase; letter-spacing: 2px; text-align: center; border-bottom: 2px solid #2A3441; padding-bottom: 20px; }
         h2 { color: var(--primary); font-size: 24px; margin-top: 0; }
         .card { background: var(--surface); padding: 25px; border-radius: 12px; border-left: 5px solid var(--primary); margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         input, select, button { font-family: 'Chakra Petch', sans-serif; font-size: 18px; padding: 15px; margin: 5px 0; border-radius: 8px; border: 1px solid #2A3441; background: #0B0F19; color: white; width: 100%; box-sizing: border-box; }
         input[type="file"] { border: none; padding: 10px 0; }
-        input[type="color"] { padding: 5px; height: 50px; cursor: pointer; }
         
-        /* สไตล์สำหรับ Slider (Range) แบบ Futuristic */
-        input[type="range"] { -webkit-appearance: none; width: 100%; height: 8px; background: #2A3441; border-radius: 5px; outline: none; border: none; padding: 0; margin: 15px 0; }
-        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 28px; height: 28px; border-radius: 50%; background: var(--primary); cursor: pointer; box-shadow: 0 0 10px var(--primary); }
-        input[type="range"]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 50%; background: var(--primary); cursor: pointer; box-shadow: 0 0 10px var(--primary); border: none; }
-
-        label { font-size: 14px; color: #A0AEC0; display: block; margin-bottom: 5px; text-transform: uppercase; font-weight: bold; }
-        .val-display { color: var(--primary); font-size: 18px; margin-left: 5px; }
         button { cursor: pointer; font-weight: bold; text-transform: uppercase; transition: 0.2s; border: none; }
         .btn-primary { background: var(--primary); color: #000; }
         .btn-primary:hover { background: #00E6B8; transform: translateY(-2px); }
@@ -36,6 +28,7 @@
         .thumbnail { width: 90px; height: 90px; object-fit: cover; border-radius: 6px; border: 1px solid var(--primary); background: #000; }
         .controls { display: flex; gap: 10px; flex: 1; min-width: 250px;}
         .status-text { color: var(--primary); font-weight: bold; margin-top: 10px; }
+        .limit-warn { color: var(--danger); font-size: 14px; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -49,67 +42,31 @@
     <div class="container" id="dashboard">
         <h1>Control Panel</h1>
         
-        <!-- ส่วนที่ 1: Poster -->
         <div class="card">
-            <h2>1. Left Poster (สัดส่วน A4 แนวตั้ง)</h2>
-            <div class="flex-row">
-                <div class="col" style="flex: 2;"><input type="file" id="poster-file" accept="image/*,video/*"></div>
-                <div class="col"><input type="number" id="poster-duration" placeholder="เวลาแสดง (วินาที)" value="10"></div>
-                <div class="col"><button class="btn-primary" onclick="uploadMedia('posterList')" style="height: 55px;">UPLOAD</button></div>
-            </div>
-            <div id="poster-status" class="status-text"></div>
-            <div id="poster-playlist"></div>
-        </div>
-
-        <!-- ส่วนที่ 2: Main Media -->
-        <div class="card">
-            <h2>2. Main Media (จอหลัก 60%)</h2>
-            <div class="flex-row">
-                <div class="col" style="flex: 2;"><input type="file" id="main-file" accept="image/*,video/*"></div>
-                <div class="col"><input type="number" id="main-duration" placeholder="เวลาแสดง (วินาที)" value="10"></div>
-                <div class="col"><button class="btn-primary" onclick="uploadMedia('mediaList')" style="height: 55px;">UPLOAD</button></div>
-            </div>
-            <div id="main-status" class="status-text"></div>
-            <div id="main-playlist"></div>
-        </div>
-
-        <!-- ส่วนที่ 3: Marquee Settings -->
-        <div class="card">
-            <h2>3. Marquee Text & Styling</h2>
-            <div class="flex-row">
-                <div class="col" style="flex: 100%;">
-                    <label>ข้อความที่ต้องการแสดง</label>
-                    <input type="text" id="mq-text" placeholder="พิมพ์ข้อความวิ่งที่นี่...">
-                </div>
-            </div>
+            <h2>Full Screen Media (วิดีโอ/ภาพเต็มจอ)</h2>
+            <div class="limit-warn" id="media-count">รายการ: 0/10</div>
+            
             <div class="flex-row">
                 <div class="col" style="flex: 2;">
-                    <label>ความเร็ว (วินาที/รอบ)<span class="val-display" id="speed-val">20</span></label>
-                    <input type="range" id="mq-speed" min="5" max="60" value="20" oninput="document.getElementById('speed-val').innerText = this.value">
-                </div>
-                <div class="col" style="flex: 2;">
-                    <label>ขนาดตัวอักษร (px)<span class="val-display" id="size-val">46</span></label>
-                    <input type="range" id="mq-size" min="20" max="150" value="46" oninput="document.getElementById('size-val').innerText = this.value">
-                </div>
-            </div>
-            <div class="flex-row">
-                <div class="col">
-                    <label>สีตัวอักษร</label>
-                    <input type="color" id="mq-color" value="#00FFCC">
+                    <input type="file" id="media-file" accept="image/*,video/*">
                 </div>
                 <div class="col">
-                    <label>สีพื้นหลัง</label>
-                    <input type="color" id="mq-bg" value="#0B0F19">
+                    <input type="number" id="media-duration" placeholder="เวลา (วินาที)" value="10">
+                </div>
+                <div class="col">
+                    <button class="btn-primary" onclick="uploadMedia()" style="height: 55px;">UPLOAD</button>
                 </div>
             </div>
-            <button class="btn-primary" id="save-marquee-btn" style="width: 100%; margin-top: 15px;">SAVE MARQUEE SETTINGS</button>
+            
+            <div id="upload-status" class="status-text"></div>
+            <div id="playlist-container" style="margin-top: 20px;"></div>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
-        import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-storage.js";
+        import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBvXRATBf2x1Lq_JToL2rlQYOh8mK65tIU",
@@ -126,7 +83,7 @@
         const storage = getStorage(app);
         const docRef = doc(db, "signage", "main_screen");
 
-        let state = { posterList: [], mediaList: [] };
+        let mediaList = [];
 
         window.checkPassword = () => {
             if (document.getElementById('password').value === '987654321') {
@@ -142,50 +99,81 @@
             onSnapshot(docRef, (docSnap) => {
                 if (docSnap.exists()) {
                     const data = docSnap.data();
+                    mediaList = data.mediaList || [];
                     
-                    document.getElementById('mq-text').value = data.marqueeText || "";
-                    
-                    document.getElementById('mq-speed').value = data.marqueeSpeed || 20;
-                    document.getElementById('speed-val').innerText = data.marqueeSpeed || 20;
-                    
-                    document.getElementById('mq-size').value = data.marqueeFontSize || 46;
-                    document.getElementById('size-val').innerText = data.marqueeFontSize || 46;
-                    
-                    document.getElementById('mq-color').value = data.marqueeColor || "#00ffcc";
-                    document.getElementById('mq-bg').value = data.marqueeBgColor || "#0b0f19";
-
-                    state.posterList = data.posterList || [];
-                    state.mediaList = data.mediaList || [];
-                    
-                    renderPlaylist('posterList', 'poster-playlist');
-                    renderPlaylist('mediaList', 'main-playlist');
+                    document.getElementById('media-count').innerText = `รายการ: ${mediaList.length}/10`;
+                    renderPlaylist();
                 }
             });
         }
 
-        document.getElementById('save-marquee-btn').addEventListener('click', async () => {
-            await setDoc(docRef, { 
-                marqueeText: document.getElementById('mq-text').value,
-                marqueeSpeed: parseInt(document.getElementById('mq-speed').value) || 20,
-                marqueeFontSize: parseInt(document.getElementById('mq-size').value) || 46,
-                marqueeColor: document.getElementById('mq-color').value,
-                marqueeBgColor: document.getElementById('mq-bg').value
-            }, { merge: true });
-            alert('บันทึกการตั้งค่าข้อความวิ่งเรียบร้อย');
-        });
+        // ระบบบีบอัดภาพก่อนอัปโหลด
+        function compressImage(file, maxWidth = 1920, maxHeight = 1080, quality = 0.8) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = event => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        let width = img.width;
+                        let height = img.height;
 
-        window.uploadMedia = async (targetField) => {
-            const fileInput = document.getElementById(targetField === 'posterList' ? 'poster-file' : 'main-file');
-            const durationInput = document.getElementById(targetField === 'posterList' ? 'poster-duration' : 'main-duration');
-            const statusDisplay = document.getElementById(targetField === 'posterList' ? 'poster-status' : 'main-status');
+                        if (width > height) {
+                            if (width > maxWidth) {
+                                height = Math.round((height *= maxWidth / width));
+                                width = maxWidth;
+                            }
+                        } else {
+                            if (height > maxHeight) {
+                                width = Math.round((width *= maxHeight / height));
+                                height = maxHeight;
+                            }
+                        }
+
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality);
+                    };
+                };
+            });
+        }
+
+        window.uploadMedia = async () => {
+            if (mediaList.length >= 10) {
+                return alert('อัปโหลดได้สูงสุด 10 ไฟล์ต่อจอภาพ เพื่อป้องกันพื้นที่จัดเก็บเต็ม');
+            }
+
+            const fileInput = document.getElementById('media-file');
+            const durationInput = document.getElementById('media-duration');
+            const statusDisplay = document.getElementById('upload-status');
             
             const file = fileInput.files[0];
             const duration = durationInput.value;
+            
             if (!file) return alert('กรุณาเลือกไฟล์');
 
+            if (file.size > 50 * 1024 * 1024) {
+                fileInput.value = '';
+                return alert('ปฏิเสธการทำงาน: ขนาดไฟล์เกิน 50 MB กรุณาลดขนาดไฟล์ก่อนทำการอัปโหลด');
+            }
+
+            statusDisplay.innerText = 'กำลังประมวลผลไฟล์...';
+            
+            let fileToUpload = file;
             const fileType = file.type.startsWith('video/') ? 'video' : 'image';
-            const storageRef = ref(storage, `signage_${targetField}/${Date.now()}_${file.name}`);
-            const uploadTask = uploadBytesResumable(storageRef, file);
+            
+            if (fileType === 'image') {
+                fileToUpload = await compressImage(file);
+            }
+
+            const fileExtension = fileType === 'image' ? 'jpg' : file.name.split('.').pop();
+            const storagePath = `signage_fullscreen/${Date.now()}_optimized.${fileExtension}`;
+            const storageRef = ref(storage, storagePath);
+            const uploadTask = uploadBytesResumable(storageRef, fileToUpload);
 
             uploadTask.on('state_changed', 
                 (snapshot) => {
@@ -195,10 +183,10 @@
                 (error) => { console.error(error); statusDisplay.innerText = 'Upload failed!'; }, 
                 async () => {
                     const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                    const newMedia = { type: fileType, url: downloadURL, duration: parseInt(duration) || 10 };
+                    const newMedia = { type: fileType, url: downloadURL, duration: parseInt(duration) || 10, storagePath: storagePath };
                     
-                    let newList = [...state[targetField], newMedia];
-                    await setDoc(docRef, { [targetField]: newList }, { merge: true });
+                    let newList = [...mediaList, newMedia];
+                    await setDoc(docRef, { mediaList: newList }, { merge: true });
                     
                     statusDisplay.innerText = 'อัปโหลดสำเร็จ!';
                     setTimeout(() => statusDisplay.innerText = '', 3000);
@@ -207,11 +195,11 @@
             );
         };
 
-        function renderPlaylist(targetField, containerId) {
-            const container = document.getElementById(containerId);
+        function renderPlaylist() {
+            const container = document.getElementById('playlist-container');
             container.innerHTML = '';
             
-            state[targetField].forEach((item, index) => {
+            mediaList.forEach((item, index) => {
                 const row = document.createElement('div');
                 row.className = 'media-row';
                 const typeLabel = item.type === 'video' ? '🎬 วิดีโอ' : `🖼️ ภาพ (${item.duration}s)`;
@@ -222,32 +210,41 @@
                         <span style="font-size: 18px;">${typeLabel}</span>
                     </div>
                     <div class="controls">
-                        <button class="btn-primary btn-small" onclick="moveItem('${targetField}', ${index}, -1)">▲</button>
-                        <button class="btn-primary btn-small" onclick="moveItem('${targetField}', ${index}, 1)">▼</button>
-                        <button class="btn-danger btn-small" onclick="deleteItem('${targetField}', ${index})">X</button>
+                        <button class="btn-primary btn-small" onclick="moveItem(${index}, -1)">▲</button>
+                        <button class="btn-primary btn-small" onclick="moveItem(${index}, 1)">▼</button>
+                        <button class="btn-danger btn-small" onclick="deleteItem(${index})">X ลบ</button>
                     </div>
                 `;
                 container.appendChild(row);
             });
         }
 
-        window.moveItem = async (targetField, index, direction) => {
-            const list = state[targetField];
-            if (index + direction < 0 || index + direction >= list.length) return;
+        window.moveItem = async (index, direction) => {
+            if (index + direction < 0 || index + direction >= mediaList.length) return;
             const newIndex = index + direction;
             
-            const temp = list[index];
-            list[index] = list[newIndex];
-            list[newIndex] = temp;
+            const temp = mediaList[index];
+            mediaList[index] = mediaList[newIndex];
+            mediaList[newIndex] = temp;
             
-            await setDoc(docRef, { [targetField]: list }, { merge: true });
+            await setDoc(docRef, { mediaList: mediaList }, { merge: true });
         };
 
-        window.deleteItem = async (targetField, index) => {
-            if(confirm('ต้องการลบสื่อนี้ใช่หรือไม่?')) {
-                const list = state[targetField];
-                list.splice(index, 1);
-                await setDoc(docRef, { [targetField]: list }, { merge: true });
+        window.deleteItem = async (index) => {
+            if(confirm('ต้องการลบสื่อนี้ และลบไฟล์ออกจากพื้นที่จัดเก็บใช่หรือไม่?')) {
+                const itemToDelete = mediaList[index];
+
+                if (itemToDelete.storagePath) {
+                    try {
+                        const fileRef = ref(storage, itemToDelete.storagePath);
+                        await deleteObject(fileRef);
+                    } catch (error) {
+                        console.error('ไม่สามารถลบไฟล์จาก Storage ได้:', error);
+                    }
+                }
+
+                mediaList.splice(index, 1);
+                await setDoc(docRef, { mediaList: mediaList }, { merge: true });
             }
         };
     </script>
