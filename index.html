@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Digital Signage - Full Screen Media</title>
+    <title>Digital Signage - Offline Ready</title>
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body, html { 
@@ -17,9 +17,9 @@
             width: 100vw; height: 100vh; 
             position: relative; 
             overflow: hidden; 
+            background: #000;
         }
         
-        /* บังคับยืดเต็มจอ 100% ด้วย object-fit: fill และมีเอฟเฟกต์ Fade in/out */
         .media-item { 
             width: 100%; height: 100%; 
             object-fit: fill; 
@@ -35,6 +35,13 @@
             visibility: visible !important; 
             z-index: 1;
         }
+
+        #sync-status {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: #00FFCC; font-size: 24px; font-weight: bold; z-index: 100;
+            background: rgba(11, 15, 25, 0.8); padding: 20px 40px; border-radius: 12px;
+            border: 2px solid #00FFCC; display: none; text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -42,6 +49,7 @@
     <div id="fullscreen-container">
         <!-- สื่อจะถูกเพิ่มอัตโนมัติที่นี่ -->
     </div>
+    <div id="sync-status">กำลังดาวน์โหลดสื่อลงเครื่อง (Offline Sync)...</div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
@@ -60,29 +68,83 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        let mediaList = [];
+        let originalFirebaseList = []; // เก็บประวัติว่าเคยซิงค์คิวไหนไปแล้ว
+        let localPlayList = [];        // เก็บข้อมูลไฟล์ที่อยู่ในเครื่องแล้ว
         let currentIndex = 0;
         let playTimeout;
         const container = document.getElementById('fullscreen-container');
+        const syncStatus = document.getElementById('sync-status');
 
+        // ฟังก์ชันหัวใจหลัก: ดาวน์โหลดและแคชไฟล์เก็บไว้ในเครื่อง
+        async function syncAndCacheMedia(firebaseList) {
+            const cacheName = 'signage-offline-cache';
+            const cache = await caches.open(cacheName);
+            let readyMediaList = [];
+
+            // 1. ตรวจสอบและลบไฟล์เก่าในเครื่องที่ไม่มีใน Playlist แล้ว
+            const cachedRequests = await cache.keys();
+            const firebaseUrls = firebaseList.map(item => item.url);
+
+            for (let req of cachedRequests) {
+                if (!firebaseUrls.includes(req.url)) {
+                    await cache.delete(req);
+                    console.log('🗑️ ลบไฟล์เก่าออกจากเครื่อง:', req.url);
+                }
+            }
+
+            // 2. ดาวน์โหลดไฟล์ใหม่และสร้าง Local URL
+            for (let i = 0; i < firebaseList.length; i++) {
+                const item = firebaseList[i];
+                let response = await cache.match(item.url);
+
+                if (!response) {
+                    console.log('⬇️ กำลังดาวน์โหลดไฟล์ใหม่:', item.url);
+                    try {
+                        response = await fetch(item.url);
+                        if (response.ok) {
+                            await cache.put(item.url, response.clone());
+                        } else {
+                            console.error('โหลดไฟล์ไม่สำเร็จ:', item.url);
+                            continue;
+                        }
+                    } catch (error) {
+                        console.error('เน็ตหลุดระหว่างดาวน์โหลด:', error);
+                        continue; // ข้ามไฟล์นี้ไปถ้าเน็ตหลุดตอนกำลังโหลด
+                    }
+                } else {
+                    console.log('✅ โหลดจากแคชในเครื่อง:', item.url);
+                }
+
+                // แปลงไฟล์จากแคชเป็น Blob URL สำหรับเล่นออฟไลน์ 100%
+                const blob = await response.blob();
+                const localUrl = URL.createObjectURL(blob);
+
+                readyMediaList.push({
+                    type: item.type,
+                    duration: item.duration,
+                    localUrl: localUrl // ใช้ URL ภายในเครื่องแทนของ Firebase
+                });
+            }
+
+            return readyMediaList;
+        }
+
+        // ระบบเล่นสื่อวนลูป
         function playMedia() {
-            if (mediaList.length === 0) return;
+            if (localPlayList.length === 0) return;
             
-            // ดึงคลาส active ออกจากทั้งหมด เพื่อให้ค่อยๆ จางหาย (Fade out)
             document.querySelectorAll('.media-item').forEach(el => el.classList.remove('active'));
             
-            if (currentIndex >= mediaList.length) currentIndex = 0;
-            const currentMedia = mediaList[currentIndex];
+            if (currentIndex >= localPlayList.length) currentIndex = 0;
+            const currentMedia = localPlayList[currentIndex];
             const mediaElement = document.getElementById(`media-${currentIndex}`);
             
             if (mediaElement) {
-                // ใส่คลาส active เพื่อให้ค่อยๆ ปรากฏ (Fade in)
                 mediaElement.classList.add('active');
                 
                 if (currentMedia.type === 'video') {
                     mediaElement.currentTime = 0;
-                    // เล่นเสียงวิดีโอ (หากตั้งค่าเบราว์เซอร์ให้ Autoplay แล้ว)
-                    mediaElement.play().catch(e => console.log("Video Play Error (Autoplay Blocked):", e));
+                    mediaElement.play().catch(e => console.log("Video Play Error:", e));
                     mediaElement.onended = () => { clearTimeout(playTimeout); currentIndex++; playMedia(); };
                 } else {
                     playTimeout = setTimeout(() => { currentIndex++; playMedia(); }, (currentMedia.duration || 10) * 1000);
@@ -92,15 +154,15 @@
             }
         }
 
+        // สร้าง Element หน้าเว็บจากไฟล์ในเครื่อง
         function buildMediaElements(list) {
             container.innerHTML = "";
             list.forEach((item, index) => {
                 let el = document.createElement(item.type === 'video' ? 'video' : 'img');
-                el.src = item.url;
+                el.src = item.localUrl; // อ่านไฟล์จาก Blob ในเครื่องเท่านั้น
                 el.className = 'media-item';
                 el.id = `media-${index}`;
                 
-                // เปิดเสียงให้วิดีโอ
                 if (item.type === 'video') { 
                     el.muted = false; 
                 }
@@ -109,16 +171,28 @@
             });
         }
 
-        onSnapshot(doc(db, "signage", "main_screen"), (docSnap) => {
+        // ดักจับการอัปเดตจาก Firebase
+        onSnapshot(doc(db, "signage", "main_screen"), async (docSnap) => {
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 const newMediaList = data.mediaList || [];
                 
-                // ตรวจสอบการเปลี่ยนแปลงและโหลดสื่อใหม่
-                if(JSON.stringify(newMediaList) !== JSON.stringify(mediaList)) {
-                    mediaList = newMediaList;
-                    buildMediaElements(mediaList);
+                // ถ้ารายการสื่อเปลี่ยนไปจากเดิม ถึงจะทำการซิงค์ใหม่
+                if(JSON.stringify(newMediaList) !== JSON.stringify(originalFirebaseList)) {
+                    originalFirebaseList = newMediaList;
+                    
+                    // หยุดเล่นและโชว์สถานะกำลังซิงค์
                     clearTimeout(playTimeout);
+                    document.querySelectorAll('video').forEach(v => v.pause());
+                    syncStatus.style.display = 'block';
+
+                    // เริ่มการดาวน์โหลดและแคชลงเครื่อง
+                    localPlayList = await syncAndCacheMedia(newMediaList);
+
+                    // สร้างหน้าจอใหม่และซ่อนหน้าต่างแจ้งเตือน
+                    buildMediaElements(localPlayList);
+                    syncStatus.style.display = 'none';
+                    
                     currentIndex = 0;
                     playMedia();
                 }
